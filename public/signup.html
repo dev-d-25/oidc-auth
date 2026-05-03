@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Create Account</title>
+  <title>Create Account | AuthT</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -66,6 +66,15 @@
     .header {
       text-align: center;
       margin-bottom: 1.75rem;
+    }
+
+    .eyebrow {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
     }
 
     .icon {
@@ -235,8 +244,9 @@
           <path d="M20 21a8 8 0 1 0-16 0"/>
         </svg>
       </div>
-      <h1>Create an account</h1>
-      <p class="subtitle">Enter your details to get started</p>
+      <p class="eyebrow">AuthT</p>
+      <h1>Create your AuthT account</h1>
+      <p class="subtitle" id="subtitle">Loading app sign-up details...</p>
     </div>
 
     <form class="form" id="signupForm" novalidate>
@@ -261,13 +271,13 @@
 
       <div class="field">
         <label for="password">Password</label>
-        <input id="password" name="password" type="password" autocomplete="new-password" placeholder="••••••••" required />
+        <input id="password" name="password" type="password" autocomplete="new-password" placeholder="********" required />
         <span class="hint" id="passwordHint">Must be at least 8 characters</span>
       </div>
 
       <div class="field">
         <label for="confirmPassword">Confirm password</label>
-        <input id="confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" placeholder="••••••••" required />
+        <input id="confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" placeholder="********" required />
         <span class="hint error" id="confirmHint" style="display:none">Passwords do not match</span>
       </div>
 
@@ -283,7 +293,7 @@
     </form>
 
     <div class="footer">
-      Already have an account? <a href="/o/authenticate">Sign in</a>
+      Already have an account? <a href="#" id="signinLink">Sign in</a>
     </div>
   </div>
 
@@ -297,8 +307,13 @@
     const passwordInput = document.getElementById('password');
     const confirmInput = document.getElementById('confirmPassword');
     const confirmHint = document.getElementById('confirmHint');
+    const signinLink = document.getElementById('signinLink');
+    const subtitle = document.getElementById('subtitle');
 
     const params = new URLSearchParams(window.location.search);
+    console.log('URL params (signup):', Object.fromEntries(params.entries()));
+    signinLink.href = `/authenticate.html?${params.toString()}`;
+    let clientReady = false;
 
     confirmInput.addEventListener('input', () => {
       const mismatch = confirmInput.value && confirmInput.value !== passwordInput.value;
@@ -323,15 +338,57 @@
       successMsg.style.display = 'none';
     }
 
+    function blockSubmission(message) {
+      clientReady = false;
+      submitBtn.disabled = true;
+      btnText.textContent = 'Create account';
+      spinner.style.display = 'none';
+      subtitle.textContent = message;
+    }
+
     function setLoading(loading) {
       submitBtn.disabled = loading;
       spinner.style.display = loading ? 'block' : 'none';
-      btnText.textContent = loading ? 'Creating account…' : 'Create account';
+      btnText.textContent = loading ? 'Creating account...' : 'Create account';
     }
+
+    async function loadClientDisplay() {
+      const clientId = params.get('client_id');
+
+      if (!clientId) {
+        showError('Unable to load this app\'s sign-up details.');
+        blockSubmission('Missing app sign-up details.');
+        return;
+      }
+
+      try {
+        const res = await fetch(`/o/client/${encodeURIComponent(clientId)}/public`);
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || !data.data || !data.data.clientName) {
+          throw new Error('CLIENT_LOOKUP_FAILED');
+        }
+
+        clientReady = true;
+        subtitle.textContent = `Create your account for ${data.data.clientName}`;
+        submitBtn.disabled = false;
+      } catch {
+        showError('Unable to load this app\'s sign-up details.');
+        blockSubmission('App sign-up details unavailable.');
+      }
+    }
+
+    blockSubmission('Loading app sign-up details...');
+    loadClientDisplay();
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       hideMessages();
+
+      if (!clientReady) {
+        showError('Unable to load this app\'s sign-up details.');
+        return;
+      }
 
       const firstName = document.getElementById('firstName').value.trim();
       const lastName = document.getElementById('lastName').value.trim();
@@ -357,20 +414,27 @@
       setLoading(true);
 
       try {
-        const res = await fetch('/o/authenticate/sign-up', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            firstName,
-            lastName,
-            email,
-            password,
-            client_id: params.get('client_id'),
-            redirect_uri: params.get('redirect_uri'),
-            state: params.get('state'),
-            nonce: params.get('nonce'),
-          }),
-        });
+         const body = {
+           firstName,
+           lastName,
+           email,
+           password,
+           client_id: params.get('client_id'),
+           redirect_uri: params.get('redirect_uri'),
+           response_type: params.get('response_type') || 'code',
+           state: params.get('state'),
+           scope: params.get('scope'),
+           nonce: params.get('nonce'),
+           code_challenge: params.get('code_challenge'),
+           code_challenge_method: params.get('code_challenge_method'),
+         };
+         console.log('Sending sign-up request:', body);
+         
+         const res = await fetch('/o/authenticate/sign-up', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
 
         const data = await res.json().catch(() => ({}));
 
@@ -379,9 +443,9 @@
         } else if (data.redirect) {
           window.location.href = data.redirect;
         } else {
-          showSuccess('Account created! Redirecting…');
+          showSuccess('Account created! Redirecting...');
           setTimeout(() => {
-            window.location.href = `/o/authenticate${window.location.search}`;
+            window.location.href = `/authenticate.html${window.location.search}`;
           }, 1500);
         }
       } catch {

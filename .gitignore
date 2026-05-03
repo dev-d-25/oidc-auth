@@ -141,3 +141,14 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Build output
+build/
+
+# Auto-generated certificates
+cert/
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store

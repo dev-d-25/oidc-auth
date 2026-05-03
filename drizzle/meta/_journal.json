@@ -8,6 +8,27 @@
       "when": 1776588413376,
       "tag": "0000_glorious_hemingway",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1777532711218,
+      "tag": "0001_chunky_richard_fisk",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1777603200000,
+      "tag": "0002_tidy_refresh_tokens",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1777623658943,
+      "tag": "0003_worthless_morph",
+      "breakpoints": true
     }
   ]
 }

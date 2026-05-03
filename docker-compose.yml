@@ -1,15 +1,45 @@
 services:
   postgres:
-    image: postgres:17
-    restart: unless-stopped
+    image: postgres:16-alpine
+    container_name: oidc-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: oidc_auth
     ports:
       - "5432:5432"
-    environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin
-      POSTGRES_DB: oidc_auth
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  oidc-auth:
+    build: .
+    container_name: oidc-auth-server
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/oidc_auth
+      NODE_ENV: production
+      PORT: 8000
+      ISSUER_BASE_URL: http://localhost:8000
+      AUTH_SERVER_BASE_URL: http://localhost:8000
+      ACCESS_TOKEN_TTL_SECONDS: 300
+      REFRESH_TOKEN_TTL_SECONDS: 2592000
+      AUTH_SESSION_TTL_SECONDS: 2592000
+      AUTH_SESSION_COOKIE_NAME: autht_session
+      COOKIE_SECURE: "false"
+      CLIENT_PORT: 3000
+      CLIENT_BASE_URL: http://localhost:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./cert:/app/cert
+    restart: unless-stopped
 
 volumes:
-  pgdata:
+  postgres_data:
