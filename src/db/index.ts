@@ -1,4 +1,10 @@
 import "dotenv/config";
-import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
+import Database from "better-sqlite3";
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import * as schema from "./schema.js";
 
-export const db: NodePgDatabase = drizzle(process.env.DATABASE_URL!);
+const dbPath = process.env.DATABASE_PATH ?? "./local.db";
+const sqlite = new Database(dbPath);
+sqlite.pragma("journal_mode = WAL");
+
+export const db = drizzle(sqlite, { schema });

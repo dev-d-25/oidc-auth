@@ -86,7 +86,8 @@ export async function validateClient(clientId: string, redirectUri: string) {
     return { valid: false, error: "Invalid client_id" };
   }
 
-  if (!client.redirectUris.includes(redirectUri)) {
+  const redirectUris = JSON.parse(client.redirectUris) as string[];
+  if (!redirectUris.includes(redirectUri)) {
     return { valid: false, error: "Invalid redirect_uri" };
   }
 
